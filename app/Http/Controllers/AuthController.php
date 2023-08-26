@@ -27,18 +27,22 @@ class AuthController extends Controller
     /**
      * @throws ValidationException
      */
-    public function login(Request $request): JsonResponse
+    public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $request->validate([
             'email' => 'required|email',
-            'password' => 'required|string',
+            'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::guard('web')->attempt($request->only('email', 'password'))) {
             $user = Auth::user();
-            $token = $user->createToken('api-token')->plainTextToken;
+            $token = $user->createToken('auth-token')->plainTextToken;
 
-            return response()->json(['token' => $token]);
+            return response()->json([
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'expires_in' => config('sanctum.expiration'),
+            ]);
         }
 
         throw ValidationException::withMessages([

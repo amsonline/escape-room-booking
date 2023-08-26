@@ -10,7 +10,7 @@ use App\Models\Booking;
 
 class BookingController extends Controller
 {
-    private const DISCOUNT_PERCENTAGE = 10;
+    public const DISCOUNT_PERCENTAGE = 10;
 
     public function index(): JsonResponse
     {
@@ -40,10 +40,10 @@ class BookingController extends Controller
         // Check if the escape room is available and has enough capacity
         $escapeRoom = EscapeRoom::findOrFail($validatedData['escape_room_id']);
         $participantsCount = Booking::where('time_slot_id', $validatedData['time_slot_id'])
-            ->sum('participants_count');
+            ->sum('id');
 
         if ($participantsCount >= $escapeRoom->max_participants) {
-            return response()->json(['error' => 'Escape room is fully booked for this time slot.'], 422);
+            return response()->json(['error' => 'Escape room is fully booked for this time slot.'], 409);
         }
 
         // Checking the user's birthday
@@ -64,11 +64,12 @@ class BookingController extends Controller
             'escape_room_id' => $validatedData['escape_room_id'],
             'time_slot_id' => $validatedData['time_slot_id'],
             'price' => $bookingPrice,
+            'discount_percentage' => ($isBirthday ? self::DISCOUNT_PERCENTAGE : null),
         ]);
 
         $booking->save();
 
-        return response()->json(['message' => 'Booking created successfully']);
+        return response()->json(['message' => 'Booking created successfully'], 201);
     }
 
     public function destroy($id): JsonResponse
@@ -77,6 +78,7 @@ class BookingController extends Controller
         $booking = Booking::where('id', $id)
             ->where('user_id', $user->id)
             ->firstOrFail();
+
 
         $booking->delete();
 
