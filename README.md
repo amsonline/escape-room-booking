@@ -37,3 +37,18 @@ You need to have [Docker](https://www.docker.com/) and [Docker-compose](https://
     docker-compose exec app php artisan test --coverage-html coverage
    ```
    and check the coverage in ``coverage/`` folder. Currently, all controller methods are covered by tests.
+
+### Improvements
+In order to prevent race conditions on the booking system, the script works properly, because it is only a single DB query being executed and it is locked until the process is finished.
+But if we add something complex to the logic, we have to deal with it.
+
+An option is, we can Set the number of filled slots in the ``TimeSlot`` table and whenever a user starts to book, we use Redis to add the number of people in the process of booking.
+
+Let's say a time slot has 5 capacity, 3 of them are already filled and 3 people are trying to book the remaining 2 slots at the same time.
+
+1. The first one gets started and we set the Redis key ``TimeSlot{ID}`` to ``1``.
+2. The second one starts the process and calculates all possible empty places: 3 are already booked and one in ``TimeSlot{ID}`` Redis key, so there is still an empty place left. It starts the process and increments the value of ``TimeSlot{ID}``.
+3. The third one starts the process. The empty places are now 3 already booked + 2 in booking progress in Redis = 5, so there is no space left, so he/she gets an error.
+4. Whenever each user finished the booking process, the key ``TimeSlot{ID}`` gets decreased.
+
+Because Redis uses memory and it is super fast, this method can solve any race conditions, but I did not implement that in this context. 
